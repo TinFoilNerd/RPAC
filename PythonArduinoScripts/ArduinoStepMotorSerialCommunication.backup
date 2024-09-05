@@ -1,0 +1,151 @@
+#define STEPPER_PIN_1 9
+#define STEPPER_PIN_2 10
+#define STEPPER_PIN_3 11
+#define STEPPER_PIN_4 12
+
+int step_number = 0;
+bool motor_running = false;  // Flag to keep track of motor state
+bool direction = true;       // True for clockwise, false for counterclockwise
+
+void setup() {
+  pinMode(STEPPER_PIN_1, OUTPUT);
+  pinMode(STEPPER_PIN_2, OUTPUT);
+  pinMode(STEPPER_PIN_3, OUTPUT);
+  pinMode(STEPPER_PIN_4, OUTPUT);
+
+  Serial.begin(9600);  // Initialize serial communication at 9600 baud rate
+  Serial.println("Stepper motor control ready.");
+}
+
+void loop() {
+  if (Serial.available() > 0) {
+    String command = Serial.readStringUntil('\n');  // Read the command until newline
+    command.trim();  // Remove any leading or trailing whitespace
+    
+    Serial.println("Received command: " + command); // Debug output
+    
+    if (command == "CW") {
+      motor_running = true;
+      direction = true;  // Set direction to clockwise
+      Serial.println("Motor running clockwise");
+    } else if (command == "CCW") {
+      motor_running = true;
+      direction = false; // Set direction to counterclockwise
+      Serial.println("Motor running counterclockwise");
+    } else if (command == "STOP") {
+      motor_running = false;  // Stop the motor
+      Serial.println("Motor stopped");
+    } else if (command.startsWith("STEP,CW,")) {
+      int steps = command.substring(8).toInt();  // Extract the number of steps after "STEP,CW,"
+      if (steps > 0) {
+        Serial.println("Moving motor " + String(steps) + " steps clockwise");
+        for (int i = 0; i < steps; i++) {
+          OneStep(true);  // Move clockwise
+          delay(5);  // Adjust delay to control speed
+        }
+        Serial.println("Completed " + String(steps) + " steps clockwise");
+      } else {
+        Serial.println("Invalid step number.");
+      }
+    } else if (command.startsWith("STEP,CCW,")) {
+      int steps = command.substring(9).toInt();  // Extract the number of steps after "STEP,CCW,"
+      if (steps > 0) {
+        Serial.println("Moving motor " + String(steps) + " steps counterclockwise");
+        for (int i = 0; i < steps; i++) {
+          OneStep(false);  // Move counterclockwise
+          delay(5);  // Adjust delay to control speed
+        }
+        Serial.println("Completed " + String(steps) + " steps counterclockwise");
+      } else {
+        Serial.println("Invalid step number.");
+      }
+    } else if (command.startsWith("STEP,")) {
+      String stepValueStr = command.substring(5);  // Extract everything after "STEP,"
+      int steps = stepValueStr.toInt();  // Convert the extracted part to an integer
+
+      Serial.println("Parsed step number: " + String(steps)); // Debug output
+
+      if (steps > 0) {
+        Serial.println("Moving motor " + String(steps) + " steps");
+        for (int i = 0; i < steps; i++) {
+          OneStep(direction);  // Adjust the direction if needed
+          delay(5);  // Adjust delay to control speed
+        }
+        Serial.println("Completed " + String(steps) + " steps");
+      } else {
+        Serial.println("Invalid step number."); // Invalid step number if conversion fails
+      }
+    } else {
+      Serial.println("Unknown command: " + command);  // Handle unknown commands
+    }
+  }
+
+  // Run the motor if it is set to running state
+  if (motor_running) {
+    OneStep(direction);  // Make one step in the current direction
+    delay(2);            // Control the speed
+  }
+}
+
+void OneStep(bool dir) {
+  if (dir) {  // Clockwise direction
+    switch (step_number) {
+      case 0:
+        digitalWrite(STEPPER_PIN_1, HIGH);
+        digitalWrite(STEPPER_PIN_2, LOW);
+        digitalWrite(STEPPER_PIN_3, LOW);
+        digitalWrite(STEPPER_PIN_4, LOW);
+        break;
+      case 1:
+        digitalWrite(STEPPER_PIN_1, LOW);
+        digitalWrite(STEPPER_PIN_2, HIGH);
+        digitalWrite(STEPPER_PIN_3, LOW);
+        digitalWrite(STEPPER_PIN_4, LOW);
+        break;
+      case 2:
+        digitalWrite(STEPPER_PIN_1, LOW);
+        digitalWrite(STEPPER_PIN_2, LOW);
+        digitalWrite(STEPPER_PIN_3, HIGH);
+        digitalWrite(STEPPER_PIN_4, LOW);
+        break;
+      case 3:
+        digitalWrite(STEPPER_PIN_1, LOW);
+        digitalWrite(STEPPER_PIN_2, LOW);
+        digitalWrite(STEPPER_PIN_3, LOW);
+        digitalWrite(STEPPER_PIN_4, HIGH);
+        break;
+    }
+  } else {  // Counterclockwise direction
+    switch (step_number) {
+      case 0:
+        digitalWrite(STEPPER_PIN_1, LOW);
+        digitalWrite(STEPPER_PIN_2, LOW);
+        digitalWrite(STEPPER_PIN_3, LOW);
+        digitalWrite(STEPPER_PIN_4, HIGH);
+        break;
+      case 1:
+        digitalWrite(STEPPER_PIN_1, LOW);
+        digitalWrite(STEPPER_PIN_2, LOW);
+        digitalWrite(STEPPER_PIN_3, HIGH);
+        digitalWrite(STEPPER_PIN_4, LOW);
+        break;
+      case 2:
+        digitalWrite(STEPPER_PIN_1, LOW);
+        digitalWrite(STEPPER_PIN_2, HIGH);
+        digitalWrite(STEPPER_PIN_3, LOW);
+        digitalWrite(STEPPER_PIN_4, LOW);
+        break;
+      case 3:
+        digitalWrite(STEPPER_PIN_1, HIGH);
+        digitalWrite(STEPPER_PIN_2, LOW);
+        digitalWrite(STEPPER_PIN_3, LOW);
+        digitalWrite(STEPPER_PIN_4, LOW);
+        break;
+    }
+  }
+  
+  step_number++;
+  if (step_number > 3) {
+    step_number = 0;
+  }
+}

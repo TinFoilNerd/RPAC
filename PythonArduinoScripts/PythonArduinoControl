@@ -1,0 +1,98 @@
+import serial
+import time
+
+# Open serial port
+arduino = serial.Serial('/dev/ttyACM0', 9600)  # Replace with your Arduino port
+time.sleep(2)  # Wait for the Arduino to initialize
+
+def execute_command(command):
+    """
+    Function to execute a single command.
+    """
+    arduino.write((command + '\n').encode())  # Send command to Arduino
+    print(f"Sent command: {command}")
+
+def loop_commands(commands):
+    """
+    Function to loop through the commands array and execute them.
+    """
+    for cmd, duration in commands:
+        print(f"Executing: {cmd} for {duration} seconds")
+        execute_command(cmd)
+        time.sleep(duration)  # Wait for the specified duration
+
+while True:
+    print("Enter command:")
+    print("1. CW - Rotate motor clockwise continuously")
+    print("2. CCW - Rotate motor counterclockwise continuously")
+    print("3. STOP - Stop the motor")
+    print("4. STEP,CW,<number> - Move motor clockwise a specific number of steps")
+    print("5. STEP,CCW,<number> - Move motor counterclockwise a specific number of steps")
+    print("6. LOOP,<repeat>,<command>,<duration>,... - Loop commands")
+    print("Type 'exit' to quit")
+
+    command = input("Enter command: ")
+
+    if command.lower() == 'exit':
+        break
+    elif command.startswith("LOOP"):
+        try:
+            parts = command.split(',')
+            repeat = int(parts[1])  # Number of times to repeat the loop
+            commands = parts[2:]    # Extract all commands and their durations
+
+            # List to store commands with their durations
+            commands_with_duration = []
+            i = 0
+
+            while i < len(commands):
+                # Concatenate STEP command parts to form the full command
+                if commands[i] == "STEP":
+                    cmd = ','.join(commands[i:i+3])
+                    i += 3
+                else:
+                    cmd = commands[i]
+                    i += 1
+                
+                print(f"Processing command: {cmd}")  # Debugging statement
+
+                # Check if the command is 'CW', 'CCW', or 'STOP'
+                if cmd in ["CW", "CCW", "STOP"]:
+                    duration = float(commands[i])  # Use float to handle fractions
+                    commands_with_duration.append((cmd, duration))
+                    i += 1  # Move to the next command
+                
+                # Check if the command is 'STEP,CW,<number>' or 'STEP,CCW,<number>'
+                elif cmd.startswith("STEP,CW,") or cmd.startswith("STEP,CCW,"):
+                    # Ensure the command format is correct and the step count is a number
+                    parts = cmd.split(',')
+                    if len(parts) == 3 and parts[2].isdigit():
+                        duration = float(commands[i])  # Use float to handle fractions
+                        commands_with_duration.append((cmd, duration))
+                        i += 1  # Move to the next command
+                    else:
+                        print(f"Invalid step count in command '{cmd}'. Please enter a valid command.")
+                        break
+                else:
+                    print(f"Invalid command '{cmd}'. Please enter a valid command.")
+                    break
+
+            # If all commands are valid, loop through them
+            else:
+                print(f"Looping sequence {repeat} times")
+                for _ in range(repeat):
+                    loop_commands(commands_with_duration)
+                    print("Loop iteration complete")
+
+        except (ValueError, IndexError):
+            print("Invalid input. Please use the format: LOOP,<repeat>,<command>,<duration>,...")
+    elif command.startswith("STEP,CW,") or command.startswith("STEP,CCW,"):
+        # Valid STEP command formats
+        execute_command(command)
+    elif command in ["CW", "CCW", "STOP"]:
+        execute_command(command)
+    else:
+        print("Unknown command. Please try again.")
+
+arduino.close()
+
